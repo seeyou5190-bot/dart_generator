@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>재무제표 생성기</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Malgun Gothic', sans-serif;
+            padding-top: 40px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid #edf2f9;
+            font-weight: bold;
+            font-size: 1.1em;
+            border-radius: 12px 12px 0 0 !important;
+            padding: 16px 20px;
+        }
+
+        .terminal {
+            background-color: #1e1e1e;
+            color: #4af626;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            border-radius: 8px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .btn-primary {
+            background-color: #0d6efd;
+            border: none;
+        }
+
+        .company-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+    </style>
+    <script>
+        let jobId = null;
+
+        async function startJob() {
+            const form = document.getElementById("form");
+            const formData = new FormData(form);
+
+            document.getElementById("status-badge").className = "badge bg-warning text-dark";
+            document.getElementById("status-badge").innerText = "⏳ 실행 중...";
+            document.getElementById("logs").innerText = "작업을 시작합니다...\n";
+            document.getElementById("download-area").innerHTML = "";
+
+            const res = await fetch("/start", { method: "POST", body: formData });
+            const data = await res.json();
+            jobId = data.job_id;
+
+            pollStatus();
+        }
+
+        async function pollStatus() {
+            if (!jobId) return;
+
+            const res = await fetch(`/status/${jobId}`);
+            const data = await res.json();
+
+            if (data.logs) {
+                const logBox = document.getElementById("logs");
+                logBox.innerText = data.logs.join("\n");
+                logBox.scrollTop = logBox.scrollHeight;
+            }
+
+            if (data.status === "done") {
+                document.getElementById("status-badge").className = "badge bg-success";
+                document.getElementById("status-badge").innerText = "✅ 완료";
+
+                let html = `<a href="/download/${jobId}" class="btn btn-success mt-3 w-100 fw-bold">📥 엑셀 파일 다운로드</a>`;
+
+                if (data.errors && data.errors.length > 0) {
+                    html += `<div class="alert alert-danger mt-3 mb-0"><strong>⚠ 실패 목록:</strong><ul class="mb-0 mt-2">`;
+                    data.errors.forEach(e => { html += `<li>${e[0]}: ${e[1]}</li>`; });
+                    html += `</ul></div>`;
+                }
+
+                document.getElementById("download-area").innerHTML = html;
+                return;
+            }
+
+            setTimeout(pollStatus, 1000);
+        }
+
+        function toggleAll(check) {
+            document.querySelectorAll('input[name="companies"]').forEach(cb => cb.checked = check);
+        }
+    </script>
+</head>
+
+<body>
+    <div class="container" style="max-width: 900px;">
+        <h3 class="mb-4 text-primary fw-bold">📊 손해보험사 재무제표 생성기</h3>
+
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card h-100">
+                    <div class="card-header">설정</div>
+                    <div class="card-body">
+                        <form id="form" onsubmit="event.preventDefault(); startJob();">
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">연도</label>
+                                <input type="number" class="form-control" name="year" value="2025">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">분기</label>
+                                <select class="form-select" name="quarter">
+                                    <option value="1">1Q</option>
+                                    <option value="2" selected>2Q</option>
+                                    <option value="3">3Q</option>
+                                    <option value="4">FY</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">DART API Key</label>
+                                <input type="text" class="form-control" name="api_key" placeholder="기본 키 사용 시 비워두세요">
+                            </div>
+
+                            <hr class="text-muted">
+
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label text-muted small fw-bold mb-0">대상 회사</label>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        onclick="toggleAll(true)">전체선택</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        onclick="toggleAll(false)">해제</button>
+                                </div>
+                            </div>
+                            <div class="company-grid mb-4">
+                                {% for c in companies %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="companies"
+                                        value="{{c.short_name}}" id="chk_{{c.short_name}}" checked>
+                                    <label class="form-check-label" for="chk_{{c.short_name}}">{{c.short_name}}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2">🚀 재무제표 수집 실행</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>실행 로그</span>
+                        <span id="status-badge" class="badge bg-secondary">대기 중</span>
+                    </div>
+                    <div class="card-body">
+                        <pre id="logs" class="terminal mb-0">여기에 실행 로그가 표시됩니다...</pre>
+                        <div id="download-area"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
