@@ -16,6 +16,9 @@ try:
 except Exception:
     pass
 
+# Add the current directory to the path to resolve imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from account_mapper import AccountMapper
 from dart_fetcher    import DartFetcher
 from excel_writer    import ExcelWriter
@@ -26,7 +29,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/dart_insurance.log", encoding="utf-8"),
+        log_path = os.path.join(os.path.dirname(__file__), "logs", "dart_insurance.log"),
     ],
 )
 logger = logging.getLogger(__name__)

@@ -1,3 +1,5 @@
+import os
+from fastapi import FastAPI, Form, Request
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -7,7 +9,8 @@ import uuid
 from main import run, load_config
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+base_dir = os.path.dirname(os.path.realpath(__file__))
+templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
 
 # 작업 상태 저장소 (간단 버전)
 jobs = {}
