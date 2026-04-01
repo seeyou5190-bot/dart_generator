@@ -5,7 +5,13 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from typing import List, Optional
 import uuid
+import sys
+import os
 
+# 현재 위치를 파이썬 경로에 추가하여 다른 파일들을 잘 찾게 함
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from main import run, load_config
 from main import run, load_config
 
 app = FastAPI()
