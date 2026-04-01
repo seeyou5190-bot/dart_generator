@@ -6,3 +6,4 @@ PyYAML
 pandas
 openpyxl
 dart-fss
+opendartreader
