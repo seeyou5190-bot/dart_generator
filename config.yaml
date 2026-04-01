@@ -1,0 +1,98 @@
+dart:
+  api_key: "4b83d368961e8e154003c7b183365810b2fbd36f"
+
+companies:
+  - name: "삼성화재해상보험"
+    dart_name: "삼성화재해상보험"
+    corp_code: "00139214"
+    short_name: "삼성화재"
+  - name: "현대해상화재보험"
+    dart_name: "현대해상"
+    corp_code: "00164973"
+    short_name: "현대해상"
+  - name: "DB손해보험"
+    dart_name: "DB손해보험"
+    corp_code: "00159102"
+    short_name: "DB손보"
+  - name: "KB손해보험"
+    dart_name: "KB손해보험"
+    corp_code: "00120216"
+    short_name: "KB손보"
+  - name: "메리츠화재해상보험"
+    dart_name: "메리츠화재해상보험"
+    corp_code: "00117744"
+    short_name: "메리츠화재"
+  - name: "한화손해보험"
+    dart_name: "한화손해보험"
+    corp_code: "00135917"
+    short_name: "한화손보"
+  - name: "롯데손해보험"
+    dart_name: "롯데손해보험"
+    corp_code: "00113562"
+    short_name: "롯데손보"
+  - name: "흥국화재해상보험"
+    dart_name: "흥국화재"
+    corp_code: "00103176"
+    short_name: "흥국화재"
+  - name: "농협손해보험"
+    dart_name: "NH농협손해보험"
+    corp_code: "00908155"
+    short_name: "농협손보"
+
+period:
+  year: 2025
+  quarter: 2
+
+unit:
+  target: "백만원"
+
+balance_sheet_accounts:
+  - standard: "자산 총계"
+    aliases: ["자산총계", "총자산", "자산합계", "합계"]
+    required: true
+  - standard: "현금및현금성자산"
+    aliases: ["현금및현금등가물", "현금및예치금", "현금성자산"]
+    required: false
+  - standard: "운용자산"
+    aliases: ["투자자산", "유가증권및대출채권", "금융자산"]
+    required: false
+  - standard: "부채 총계"
+    aliases: ["부채총계", "총부채", "부채합계"]
+    required: true
+  - standard: "보험계약부채"
+    aliases: ["책임준비금", "보험부채", "보험계약준비금"]
+    required: false
+  - standard: "자본 총계"
+    aliases: ["자본총계", "총자본", "자본합계", "순자산"]
+    required: true
+  - standard: "자본금"
+    aliases: ["납입자본금", "보통주자본금"]
+    required: false
+  - standard: "이익잉여금"
+    aliases: ["미처분이익잉여금", "이익준비금및이익잉여금"]
+    required: false
+
+income_statement_accounts:
+  - standard: "보험료수익"
+    aliases: ["원수보험료", "보험료", "수입보험료", "보험수익"]
+    required: true
+  - standard: "보험금비용"
+    aliases: ["보험금", "지급보험금", "보험비용"]
+    required: true
+  - standard: "사업비"
+    aliases: ["순사업비", "영업비용", "운영비"]
+    required: false
+  - standard: "투자수익"
+    aliases: ["운용수익", "이자수익및배당금수익", "금융수익"]
+    required: false
+  - standard: "영업이익"
+    aliases: ["보험영업이익", "영업손익"]
+    required: false
+  - standard: "당기순이익"
+    aliases: ["당기순손익", "순이익", "당기순이익(손실)"]
+    required: true
+
+output:
+  directory: "output"
+  filename_template: "손해보험사_재무제표_{year}{quarter}.xlsx"
+  include_comparison_sheet: true
