@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from account_mapper import AccountMapper
 from dart_fetcher    import DartFetcher
 from excel_writer    import ExcelWriter
+log_path = os.path.join(os.path.dirname(__file__), "logs", "dart_insurance.log")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,7 +30,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        log_path = os.path.join(os.path.dirname(__file__), "logs", "dart_insurance.log"),
+        logging.FileHandler(log_path, encoding="utf-8"),
     ],
 )
 logger = logging.getLogger(__name__)
