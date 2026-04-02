@@ -1,38 +1,30 @@
-import os
-from fastapi import FastAPI, Form, Request
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from typing import List, Optional
 import uuid
-import sys
+import threading
 import os
 
-# 현재 위치를 파이썬 경로에 추가하여 다른 파일들을 잘 찾게 함
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from main import run, load_config
 from main import run, load_config
 
 app = FastAPI()
-base_dir = os.path.dirname(os.path.realpath(__file__))
-templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
+templates = Jinja2Templates(directory="templates")
 
-# 작업 상태 저장소 (간단 버전)
+# 작업 상태 저장소
 jobs = {}
-
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     config = load_config("config.yaml")
     return templates.TemplateResponse(
-    request=request,
-    name="index.html",
-    context={
-        "request": request,
-        "companies": config["companies"]
-    }
-)
+        request=request,
+        name="index.html",
+        context={
+            "request": request,
+            "companies": config["companies"]
+        }
+    )
 
 @app.post("/start")
 def start(
@@ -42,44 +34,55 @@ def start(
     api_key: Optional[str] = Form(None)
 ):
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"logs": [], "status": "running"}
+    # 초기 로그 설정
+    jobs[job_id] = {"logs": ["⏳ 서버에서 작업을 준비 중입니다..."], "status": "running"}
 
     def log_callback(msg):
-        jobs[job_id]["logs"].append(msg)
+        if job_id in jobs:
+            jobs[job_id]["logs"].append(str(msg))
 
     def task():
-        config = load_config("config.yaml")
-        config["period"]["year"] = year
-        config["period"]["quarter"] = quarter
+        try:
+            log_callback(f"🚀 {year}년 {quarter}분기 수집 작업을 시작합니다.")
+            
+            config = load_config("config.yaml")
+            config["period"]["year"] = year
+            config["period"]["quarter"] = quarter
 
-        if api_key:
-            config["dart"]["api_key"] = api_key
+            if api_key:
+                config["dart"]["api_key"] = api_key
 
-        config["companies"] = [
-            c for c in config["companies"]
-            if c["short_name"] in companies
-        ]
+            config["companies"] = [
+                c for c in config["companies"]
+                if c["short_name"] in companies
+            ]
 
-        path, statements = run(config, log_callback)
+            # main.py의 run 실행
+            path = run(config, log_callback)
 
-        jobs[job_id]["file"] = path
-        jobs[job_id]["status"] = "done"
-        jobs[job_id]["errors"] = [
-            (s.short_name, s.errors) for s in statements if s.errors
-        ]
+            # 성공 시 결과 저장
+            jobs[job_id]["file"] = path
+            jobs[job_id]["status"] = "done"
+            log_callback("✅ 모든 작업이 완료되었습니다!")
 
-    import threading
-    threading.Thread(target=task).start()
+        except Exception as e:
+            # 💡 에러 발생 시 로그에 상세 내용을 남깁니다.
+            import traceback
+            error_detail = traceback.format_exc()
+            print(error_detail)  # Render 서버 로그 확인용
+            log_callback(f"❌ 오류 발생: {str(e)}")
+            jobs[job_id]["status"] = "error"
+
+    # 백그라운드 스레드 실행
+    thread = threading.Thread(target=task)
+    thread.start()
 
     return {"job_id": job_id}
 
-
 @app.get("/status/{job_id}")
 def status(job_id: str):
-    return jobs.get(job_id, {})
-
-
-# app.py 파일의 적절한 위치에 추가
+    # 해당 작업 ID가 없으면 기본값 반환
+    return jobs.get(job_id, {"logs": ["작업을 찾을 수 없습니다."], "status": "error"})
 
 @app.get("/download/{job_id}")
 def download_file(job_id: str):
