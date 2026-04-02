@@ -79,7 +79,19 @@ def status(job_id: str):
     return jobs.get(job_id, {})
 
 
+# app.py 파일의 적절한 위치에 추가
+
 @app.get("/download/{job_id}")
-def download(job_id: str):
-    job = jobs[job_id]
-    return FileResponse(job["file"], filename="result.xlsx")
+def download_file(job_id: str):
+    job = jobs.get(job_id)
+    if not job or "file" not in job:
+        return JSONResponse({"error": "파일을 찾을 수 없습니다."}, status_code=404)
+    
+    file_path = job["file"]
+    if os.path.exists(file_path):
+        return FileResponse(
+            path=file_path, 
+            filename=os.path.basename(file_path),
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    return JSONResponse({"error": "서버에 파일이 존재하지 않습니다."}, status_code=404)
