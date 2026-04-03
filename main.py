@@ -58,6 +58,13 @@ def run(config: dict, log_callback=None):
     bs_cfg   = config.get("balance_sheet_accounts", [])
     is_cfg   = config.get("income_statement_accounts", [])
 
+    out_dir = config.get("output", {}).get("directory", "output")
+    out_dir = os.path.abspath(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+
+    raw_dir = os.path.join(out_dir, "raw_reports")
+    os.makedirs(raw_dir, exist_ok=True)
+
     # AccountMapper 초기화 (수동/자동 처리는 내부 input 예외로 대응)
     mapper_bs = AccountMapper(bs_cfg)
     mapper_is = AccountMapper(is_cfg)
@@ -90,12 +97,6 @@ def run(config: dict, log_callback=None):
 
     bs_stds = [a["standard"] for a in bs_cfg]
     is_stds = [a["standard"] for a in is_cfg]
-
-    out_dir = config.get("output", {}).get("directory", "output")
-    os.makedirs(out_dir, exist_ok=True)
-
-    raw_dir = os.path.join(out_dir, "raw_reports")
-    os.makedirs(raw_dir, exist_ok=True)
 
     q_lbl   = {1:"1Q",2:"2Q",3:"3Q",4:"FY"}.get(quarter, str(quarter))
     fname   = f"손해보험사_재무제표_{year}{q_lbl}.xlsx"
