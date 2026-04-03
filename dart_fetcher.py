@@ -106,8 +106,15 @@ class DartFetcher:
     def _find_report(self, dart_name, year, quarter):
         """dart.list()는 회사명으로 검색해야 합니다."""
         try:
-            df = self.dart.list(dart_name, start=f"{year}0101",
-                                end=f"{year}1231", kind="A")
+            # 4분기(연간)는 다음 연도에 접수되므로, 두 연도 범위 검색
+            if quarter == 4:
+                start_date = f"{year}0101"
+                end_date = f"{year+1}1231"
+            else:
+                start_date = f"{year}0101"
+                end_date = f"{year}1231"
+            
+            df = self.dart.list(dart_name, start=start_date, end=end_date, kind="A")
             if df is None or df.empty:
                 return None
 
@@ -121,12 +128,39 @@ class DartFetcher:
                 mask = df["report_nm"].str.contains("사업보고서", na=False)
 
             filtered = df[mask]
-            # 가장 최근 접수된 보고서를 가져옵니다. (기재정정 등이 있을 수 있으므로)
-            # rcept_dt 기준으로 내림차순 정렬해서 최신 것을 가져옴
-            if not filtered.empty:
-                sorted_df = filtered.sort_values('rcept_dt', ascending=False)
-                return sorted_df.iloc[0].to_dict()
-            return None
+            if filtered.empty:
+                return None
+            
+            # 접수일(rcept_dt) 정렬해서 최신 것 우선
+            sorted_df = filtered.sort_values('rcept_dt', ascending=False)
+            
+            # 1,2,3분기: rcept_dt 연도 검증 (접수 연도 = 사업 연도)
+            if quarter != 4:
+                for idx, row in sorted_df.iterrows():
+                    rcept_dt = str(row.get('rcept_dt', ''))
+                    if len(rcept_dt) >= 4:
+                        rcept_year = int(rcept_dt[:4])
+                        if rcept_year == year:
+                            logger.info(f"[보고서] {dart_name} {year}년 {quarter}분기 - 접수일: {rcept_dt}, 보고서명: {row.get('report_nm', '')}")
+                            return row.to_dict()
+                logger.warning(f"[보고서] {dart_name} {year}년 {quarter}분기 보고서를 정확히 찾지 못함")
+                return sorted_df.iloc[0].to_dict() if not sorted_df.empty else None
+            
+            # 4분기(연간): 접수 연도가 (사업_연도+1)인 보고서를 찾음
+            # 예: 2025년 연간 사업보고서 → 2026년에 접수됨 (rcept_dt = 202603xx)
+            target_rcept_year = year + 1
+            for idx, row in sorted_df.iterrows():
+                rcept_dt = str(row.get('rcept_dt', ''))
+                if len(rcept_dt) >= 4:
+                    rcept_year = int(rcept_dt[:4])
+                    if rcept_year == target_rcept_year:
+                        logger.info(f"[보고서] {dart_name} {year}년 연간(4분기) - 접수일: {rcept_dt}, 보고서명: {row.get('report_nm', '')}")
+                        return row.to_dict()
+            
+            # 같은 연도 접수 보고서가 없으면 차년도 접수 (기재정정 등) 확인
+            logger.info(f"[보고서] {dart_name} {year}년 연간 사업보고서를 {target_rcept_year}년에 접수된 것으로 찾지 못함. 최신순으로 반환")
+            return sorted_df.iloc[0].to_dict() if not sorted_df.empty else None
+            
         except Exception as e:
             logger.error(f"보고서 목록 조회 실패: {e}")
             return None
