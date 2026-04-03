@@ -60,7 +60,11 @@ class DartFetcher:
 
             # 원본 보고서 파일(첨부)을 저장
             if raw_dir:
+                logger.info(f"[원본] 다운로드 시작 (raw_dir={raw_dir})")
                 fs.raw_report_files = self._download_report_files(rcept_no, short_name, year, quarter, raw_dir)
+                logger.info(f"[원본] 다운로드 완료: {len(fs.raw_report_files)}개 파일")
+            else:
+                logger.warning(f"[원본] raw_dir이 None이어서 다운로드 건너뜀")
 
             # XBRL 우선, 실패 시 PDF
             parsed = self._parse_xbrl(corp_code, year, quarter)
@@ -127,14 +131,19 @@ class DartFetcher:
             return []
         try:
             att = self.dart.attach_file_list(rcept_no)
+            logger.info(f"[원본] attach_file_list 결과: {att}")
             if not att:
+                logger.info(f"[원본] 첨부파일 없음 (rcept_no={rcept_no})")
                 return []
 
             os.makedirs(out_dir, exist_ok=True)
             saved = []
+            logger.info(f"[원본] 첨부파일 처리 시작: {len(att)}개")
             for fname, url in att.items():
+                logger.info(f"[원본] 파일: {fname}, URL: {url}")
                 ext = fname.lower().rsplit('.', 1)[-1] if '.' in fname else ''
                 if ext not in ("pdf", "hwp", "xlsx", "xls", "xbrl", "xml", "zip", "html"):
+                    logger.info(f"[원본] 스킵 (확장자={ext}): {fname}")
                     continue
 
                 safe_name = re.sub(r"[^0-9a-zA-Z가-힣._-]", "_", fname)
@@ -142,17 +151,22 @@ class DartFetcher:
 
                 # 캐시: 이미 다운로드했다면 중단
                 if os.path.exists(target):
+                    logger.info(f"[원본] 캐시됨: {target}")
                     saved.append(target)
                     continue
 
+                logger.info(f"[원본] 다운로드 중: {fname}")
                 contents = self._download(url)
                 if not contents:
+                    logger.warning(f"[원본] 다운로드 실패: {fname}")
                     continue
 
                 with open(target, "wb") as f:
                     f.write(contents)
+                logger.info(f"[원본] 저장 완료: {target} ({len(contents)} bytes)")
                 saved.append(target)
 
+            logger.info(f"[원본] 총 {len(saved)}개 파일 저장됨")
             return saved
         except Exception as e:
             logger.error(f"원본보고서 다운로드 실패: {e}")

@@ -97,18 +97,27 @@ def download_raw(job_id: str):
 
     import zipfile
     import tempfile
+    import shutil
 
-    with tempfile.TemporaryDirectory() as td:
-        zip_path = os.path.join(td, f"raw_reports_{job_id}.zip")
+    # ZIP 파일을 output 디렉터리에 저장 (임시 삭제 방지)
+    zip_dir = "output"
+    os.makedirs(zip_dir, exist_ok=True)
+    zip_path = os.path.join(zip_dir, f"raw_reports_{job_id}.zip")
+
+    try:
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for p in raw_files:
-                zf.write(p, arcname=os.path.basename(p))
+                if os.path.exists(p):
+                    zf.write(p, arcname=os.path.basename(p))
 
         return FileResponse(
             path=zip_path,
             filename=f"raw_reports_{job_id}.zip",
-            media_type='application/zip'
+            media_type='application/zip',
+            headers={"Content-Disposition": f"attachment; filename=raw_reports_{job_id}.zip"}
         )
+    except Exception as e:
+        return JSONResponse({"error": f"ZIP 생성 실패: {str(e)}"}, status_code=500)
 
 @app.get("/download/{job_id}")
 def download_file(job_id: str):
