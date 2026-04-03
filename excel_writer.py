@@ -121,11 +121,11 @@ class ExcelWriter:
             c.alignment = _align(); c.border = _border()
 
         row = 3
-        for sec, raw_data in [
-            ("재무상태표", fs.raw_bs),
-            ("손익계산서", fs.raw_is),
+        for sec, stds, getter in [
+            ("재무상태표", bs_stds, lambda fs, a: fs.balance_sheet.get(a)),
+            ("손익계산서", is_stds, lambda fs, a: fs.income_stmt.get(a)),
         ]:
-            if not raw_data: continue
+            if not stds: continue
             
             # 섹션 헤더
             ws.merge_cells(f"A{row}:C{row}")
@@ -134,7 +134,7 @@ class ExcelWriter:
             c.alignment = _align("left"); c.border = _border()
             row += 1
 
-            for i, (acct, raw_val) in enumerate(raw_data.items()):
+            for i, acct in enumerate(stds):
                 bg = C_ALT if i % 2 == 0 else "FFFFFF"
                 # "합계", "총계" 등이 포함된 행은 강조
                 is_tot = any(k in acct for k in ["총계", "합계", "총자산", "총부채", "총자본"])
@@ -145,7 +145,9 @@ class ExcelWriter:
                 a.font = _font(is_tot); a.fill = _fill(C_TOTAL if is_tot else bg)
                 a.alignment = _align("left"); a.border = _border()
                 
-                val = self._conv(raw_val, fs.unit_won)
+                val = getter(fs, acct)
+                if val is not None:
+                    val = self._conv(val, fs.unit_won)
                 vc  = ws.cell(row, 3)
                 if val is None:
                     vc.value = "-"; vc.alignment = _align()

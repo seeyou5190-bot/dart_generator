@@ -122,7 +122,11 @@ class DartFetcher:
 
             filtered = df[mask]
             # 가장 최근 접수된 보고서를 가져옵니다. (기재정정 등이 있을 수 있으므로)
-            return filtered.iloc[0].to_dict() if not filtered.empty else None
+            # rcept_dt 기준으로 내림차순 정렬해서 최신 것을 가져옴
+            if not filtered.empty:
+                sorted_df = filtered.sort_values('rcept_dt', ascending=False)
+                return sorted_df.iloc[0].to_dict()
+            return None
         except Exception as e:
             logger.error(f"보고서 목록 조회 실패: {e}")
             return None
