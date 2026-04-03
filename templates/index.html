@@ -88,8 +88,11 @@
 
                 let html = `<a href="/download/${jobId}" class="btn btn-success mt-3 w-100 fw-bold">📥 엑셀 파일 다운로드</a>`;
 
+                // 원본 보고서 버튼 항상 표시 (없으면 경고 스크립트로 안내)
                 if (data.raw_files && data.raw_files.length > 0) {
                     html += `<a href="/download_raw/${jobId}" class="btn btn-outline-primary mt-2 w-100 fw-bold">📥 원본 보고서 ZIP 다운로드</a>`;
+                } else {
+                    html += `<button type="button" class="btn btn-outline-secondary mt-2 w-100 fw-bold" disabled>원본 보고서 없음</button>`;
                 }
 
                 if (data.errors && data.errors.length > 0) {

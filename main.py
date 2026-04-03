@@ -81,16 +81,36 @@ def run(config: dict, log_callback=None):
     log(f"  대상: {total}개사  |  {year}년 {quarter}분기")
     log("=" * 60)
 
-    for i, co in enumerate(companies, 1):
-        log(f"\n[{i}/{total}] {co['short_name']} 처리 중...")
-        fs = fetcher.fetch(co, year, quarter, bs_cfg, is_cfg, mapper_bs, mapper_is, raw_dir=raw_dir)
-        statements.append(fs)
-        if fs.errors:
-            for e in fs.errors: log(f"  ⚠ {e}")
-        else:
-            bs_n = sum(1 for v in fs.balance_sheet.values() if v is not None)
-            is_n = sum(1 for v in fs.income_stmt.values()   if v is not None)
-            log(f"  ✓ 재무상태표 {bs_n}건 / 손익계산서 {is_n}건")
+    # 병렬 처리: I/O 대기(네트워크/파일) 병목 완화
+    max_workers = config.get("performance", {}).get("max_workers", 4)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    future_to_company = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for co in companies:
+            future = executor.submit(
+                fetcher.fetch,
+                co, year, quarter, bs_cfg, is_cfg, mapper_bs, mapper_is,
+                raw_dir
+            )
+            future_to_company[future] = co
+
+        for future in as_completed(future_to_company):
+            co = future_to_company[future]
+            try:
+                fs = future.result()
+            except Exception as ex:
+                log(f"  ⚠ {co['short_name']} 예외: {ex}")
+                continue
+
+            statements.append(fs)
+            if fs.errors:
+                for e in fs.errors:
+                    log(f"  ⚠ {co['short_name']}: {e}")
+            else:
+                bs_n = sum(1 for v in fs.balance_sheet.values() if v is not None)
+                is_n = sum(1 for v in fs.income_stmt.values() if v is not None)
+                log(f"  ✓ {co['short_name']} 재무상태표 {bs_n}건 / 손익계산서 {is_n}건")
 
     mapper_bs.save_user_decisions("logs/user_mapping_bs.json")
     mapper_is.save_user_decisions("logs/user_mapping_is.json")

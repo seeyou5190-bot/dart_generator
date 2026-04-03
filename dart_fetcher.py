@@ -137,12 +137,18 @@ class DartFetcher:
                 if ext not in ("pdf", "hwp", "xlsx", "xls", "xbrl", "xml", "zip", "html"):
                     continue
 
+                safe_name = re.sub(r"[^0-9a-zA-Z가-힣._-]", "_", fname)
+                target = os.path.join(out_dir, f"{short_name}_{year}Q{quarter}_{safe_name}")
+
+                # 캐시: 이미 다운로드했다면 중단
+                if os.path.exists(target):
+                    saved.append(target)
+                    continue
+
                 contents = self._download(url)
                 if not contents:
                     continue
 
-                safe_name = re.sub(r"[^0-9a-zA-Z가-힣._-]", "_", fname)
-                target = os.path.join(out_dir, f"{short_name}_{year}Q{quarter}_{safe_name}")
                 with open(target, "wb") as f:
                     f.write(contents)
                 saved.append(target)
@@ -219,16 +225,22 @@ class DartFetcher:
             return None
 
     @staticmethod
-    def _download(url: str, retries: int = 3):
+    def _download(url: str, retries: int = 5):
         import time
         for i in range(retries):
             try:
                 r = requests.get(url, timeout=60, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                if r.status_code == 429:
+                    wait = 10 * (i + 1)
+                    logger.warning(f"429 Too Many Requests: 대기 {wait}초 후 재시도")
+                    time.sleep(wait)
+                    continue
                 r.raise_for_status()
                 return r.content
-            except Exception as e:
+            except requests.exceptions.RequestException as e:
                 logger.warning(f"다운로드 실패({i+1}/{retries}): {e}")
-                time.sleep(2 ** i)
+                # 점진적 지수 백오프
+                time.sleep(min(60, 2 ** i))
         return None
 
     def _extract_pdf(self, pdf_bytes: bytes):

@@ -35,7 +35,7 @@ def start(
 ):
     job_id = str(uuid.uuid4())
     # 초기 로그 설정
-    jobs[job_id] = {"logs": ["⏳ 서버에서 작업을 준비 중입니다..."], "status": "running"}
+    jobs[job_id] = {"logs": ["⏳ 서버에서 작업을 준비 중입니다..."], "status": "running", "raw_files": []}
 
     def log_callback(msg):
         if job_id in jobs:

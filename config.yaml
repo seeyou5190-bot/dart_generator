@@ -92,6 +92,9 @@ income_statement_accounts:
     aliases: ["당기순손익", "순이익", "당기순이익(손실)"]
     required: true
 
+performance:
+  max_workers: 4
+
 output:
   directory: "output"
   filename_template: "손해보험사_재무제표_{year}{quarter}.xlsx"
