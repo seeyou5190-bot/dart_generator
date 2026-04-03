@@ -15,16 +15,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FinancialStatement:
-    company_name:  str
-    short_name:    str
-    period_label:  str
-    balance_sheet: dict = field(default_factory=dict)
-    income_stmt:   dict = field(default_factory=dict)
-    raw_bs:        dict = field(default_factory=dict) # 전체 원본 데이터
-    raw_is:        dict = field(default_factory=dict) # 전체 원본 데이터
-    unit_won:      int  = 1_000_000
-    source_type:   str  = "DART"
-    errors:        list = field(default_factory=list)
+    company_name:   str
+    short_name:     str
+    period_label:   str
+    balance_sheet:  dict = field(default_factory=dict)
+    income_stmt:    dict = field(default_factory=dict)
+    raw_bs:         dict = field(default_factory=dict)  # 전체 원본 데이터
+    raw_is:         dict = field(default_factory=dict)  # 전체 원본 데이터
+    raw_report_files: list = field(default_factory=list)  # 다운로드된 원본 보고서 파일
+    unit_won:       int  = 1_000_000
+    source_type:    str  = "DART"
+    errors:         list = field(default_factory=list)
 
     def get_unit_label(self) -> str:
         return {1: "원", 1_000: "천원", 1_000_000: "백만원",
@@ -40,7 +41,7 @@ class DartFetcher:
         self._corp_cache: dict = {}
 
     def fetch(self, company_cfg, year, quarter, bs_accounts, is_accounts,
-              mapper_bs, mapper_is) -> "FinancialStatement":
+              mapper_bs, mapper_is, raw_dir=None) -> "FinancialStatement":
         dart_name  = company_cfg["dart_name"]
         short_name = company_cfg["short_name"]
         # 설정파일의 corp_code보다 DART API 검색 결과를 우선합니다 (최신 상태 유지)
@@ -56,6 +57,10 @@ class DartFetcher:
 
             rcept_no = report["rcept_no"]
             logger.info(f"  접수번호: {rcept_no}")
+
+            # 원본 보고서 파일(첨부)을 저장
+            if raw_dir:
+                fs.raw_report_files = self._download_report_files(rcept_no, short_name, year, quarter, raw_dir)
 
             # XBRL 우선, 실패 시 PDF
             parsed = self._parse_xbrl(corp_code, year, quarter)
@@ -116,6 +121,36 @@ class DartFetcher:
         except Exception as e:
             logger.error(f"보고서 목록 조회 실패: {e}")
             return None
+
+    def _download_report_files(self, rcept_no: str, short_name: str, year: int, quarter: int, out_dir: str) -> list:
+        if not out_dir:
+            return []
+        try:
+            att = self.dart.attach_file_list(rcept_no)
+            if not att:
+                return []
+
+            os.makedirs(out_dir, exist_ok=True)
+            saved = []
+            for fname, url in att.items():
+                ext = fname.lower().rsplit('.', 1)[-1] if '.' in fname else ''
+                if ext not in ("pdf", "hwp", "xlsx", "xls", "xbrl", "xml", "zip", "html"):
+                    continue
+
+                contents = self._download(url)
+                if not contents:
+                    continue
+
+                safe_name = re.sub(r"[^0-9a-zA-Z가-힣._-]", "_", fname)
+                target = os.path.join(out_dir, f"{short_name}_{year}Q{quarter}_{safe_name}")
+                with open(target, "wb") as f:
+                    f.write(contents)
+                saved.append(target)
+
+            return saved
+        except Exception as e:
+            logger.error(f"원본보고서 다운로드 실패: {e}")
+            return []
 
     # ── XBRL 파싱 ─────────────────────────────────────
     def _parse_xbrl(self, corp_code, year, quarter):

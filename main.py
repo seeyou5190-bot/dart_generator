@@ -76,7 +76,7 @@ def run(config: dict, log_callback=None):
 
     for i, co in enumerate(companies, 1):
         log(f"\n[{i}/{total}] {co['short_name']} 처리 중...")
-        fs = fetcher.fetch(co, year, quarter, bs_cfg, is_cfg, mapper_bs, mapper_is)
+        fs = fetcher.fetch(co, year, quarter, bs_cfg, is_cfg, mapper_bs, mapper_is, raw_dir=raw_dir)
         statements.append(fs)
         if fs.errors:
             for e in fs.errors: log(f"  ⚠ {e}")
@@ -93,9 +93,18 @@ def run(config: dict, log_callback=None):
 
     out_dir = config.get("output", {}).get("directory", "output")
     os.makedirs(out_dir, exist_ok=True)
+
+    raw_dir = os.path.join(out_dir, "raw_reports")
+    os.makedirs(raw_dir, exist_ok=True)
+
     q_lbl   = {1:"1Q",2:"2Q",3:"3Q",4:"FY"}.get(quarter, str(quarter))
     fname   = f"손해보험사_재무제표_{year}{q_lbl}.xlsx"
     out_path = os.path.join(out_dir, fname)
+
+    all_raw_files = []
+    for fs in statements:
+        if fs.raw_report_files:
+            all_raw_files.extend(fs.raw_report_files)
 
     ExcelWriter(config).write(statements, bs_stds, is_stds, out_path)
 
@@ -114,7 +123,10 @@ def run(config: dict, log_callback=None):
             for e in fs.errors:
                 log(f"  - {fs.short_name}: {e}")
 
-    return out_path
+    return {
+        "excel": out_path,
+        "raw_files": all_raw_files,
+    }
 
 
 def parse_args():

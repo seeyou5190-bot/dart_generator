@@ -58,10 +58,11 @@ def start(
             ]
 
             # main.py의 run 실행
-            path = run(config, log_callback)
+            result = run(config, log_callback)
 
             # 성공 시 결과 저장
-            jobs[job_id]["file"] = path
+            jobs[job_id]["file"] = result["excel"]
+            jobs[job_id]["raw_files"] = result.get("raw_files", [])
             jobs[job_id]["status"] = "done"
             log_callback("✅ 모든 작업이 완료되었습니다!")
 
@@ -83,6 +84,31 @@ def start(
 def status(job_id: str):
     # 해당 작업 ID가 없으면 기본값 반환
     return jobs.get(job_id, {"logs": ["작업을 찾을 수 없습니다."], "status": "error"})
+
+@app.get("/download_raw/{job_id}")
+def download_raw(job_id: str):
+    job = jobs.get(job_id)
+    if not job or not job.get("raw_files"):
+        return JSONResponse({"error": "원본 파일을 찾을 수 없습니다."}, status_code=404)
+
+    raw_files = [p for p in job.get("raw_files", []) if os.path.exists(p)]
+    if not raw_files:
+        return JSONResponse({"error": "서버에 원본 파일이 존재하지 않습니다."}, status_code=404)
+
+    import zipfile
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        zip_path = os.path.join(td, f"raw_reports_{job_id}.zip")
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for p in raw_files:
+                zf.write(p, arcname=os.path.basename(p))
+
+        return FileResponse(
+            path=zip_path,
+            filename=f"raw_reports_{job_id}.zip",
+            media_type='application/zip'
+        )
 
 @app.get("/download/{job_id}")
 def download_file(job_id: str):

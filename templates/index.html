@@ -88,6 +88,10 @@
 
                 let html = `<a href="/download/${jobId}" class="btn btn-success mt-3 w-100 fw-bold">📥 엑셀 파일 다운로드</a>`;
 
+                if (data.raw_files && data.raw_files.length > 0) {
+                    html += `<a href="/download_raw/${jobId}" class="btn btn-outline-primary mt-2 w-100 fw-bold">📥 원본 보고서 ZIP 다운로드</a>`;
+                }
+
                 if (data.errors && data.errors.length > 0) {
                     html += `<div class="alert alert-danger mt-3 mb-0"><strong>⚠ 실패 목록:</strong><ul class="mb-0 mt-2">`;
                     data.errors.forEach(e => { html += `<li>${e[0]}: ${e[1]}</li>`; });
